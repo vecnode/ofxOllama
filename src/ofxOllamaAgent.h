@@ -1,5 +1,8 @@
 #pragma once
 
+#include <future>
+#include <mutex>
+
 #include "ofMain.h"
 #include "ofxOllamaClient.h"
 
@@ -17,9 +20,11 @@ public:
     const std::vector<ChatMessage>& getConversation() const;
 
     Result ask(const std::string& userText);
+    std::future<Result> askAsync(std::string userText);
 
 private:
     std::shared_ptr<Client> client;
+    mutable std::mutex mutex;
     std::vector<ChatMessage> conversation;
     RequestOptions requestOptions;
 };

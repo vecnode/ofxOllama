@@ -75,6 +75,18 @@ Result Client::chat(const std::vector<ChatMessage>& messages, const RequestOptio
     return result;
 }
 
+std::future<Result> Client::generateAsync(std::string prompt, RequestOptions options) const {
+    return std::async(std::launch::async, [this, prompt = std::move(prompt), options = std::move(options)]() {
+        return generate(prompt, options);
+    });
+}
+
+std::future<Result> Client::chatAsync(std::vector<ChatMessage> messages, RequestOptions options) const {
+    return std::async(std::launch::async, [this, messages = std::move(messages), options = std::move(options)]() {
+        return chat(messages, options);
+    });
+}
+
 Result Client::postJson(const std::string& endpoint, const ofJson& body) const {
     Result result;
 

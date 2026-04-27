@@ -13,6 +13,25 @@ void ofApp::setup() {
     statusLine = "Type prompt, press ENTER to send. BACKSPACE edits input.";
 }
 
+void ofApp::update() {
+    if (!requestInFlight) {
+        return;
+    }
+
+    if (pendingResult.valid() && pendingResult.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+        auto result = pendingResult.get();
+        requestInFlight = false;
+
+        if (result.success) {
+            responseText = result.text;
+            statusLine = "Response received.";
+            inputBuffer.clear();
+        } else {
+            statusLine = "Request failed (status " + ofToString(result.statusCode) + "): " + result.error;
+        }
+    }
+}
+
 void ofApp::draw() {
     ofSetColor(230);
     ofDrawBitmapStringHighlight("ofxOllama example", 24, 34);
@@ -54,21 +73,19 @@ void ofApp::keyPressed(int key) {
 }
 
 void ofApp::submitPrompt() {
+    if (requestInFlight) {
+        statusLine = "A request is already running. Please wait...";
+        return;
+    }
+
     if (inputBuffer.empty()) {
         statusLine = "Prompt is empty.";
         return;
     }
 
-    statusLine = "Sending request to Ollama...";
-    auto result = agent.ask(inputBuffer);
-
-    if (result.success) {
-        responseText = result.text;
-        statusLine = "Response received.";
-        inputBuffer.clear();
-    } else {
-        statusLine = "Request failed (status " + ofToString(result.statusCode) + "): " + result.error;
-    }
+    statusLine = "Sending request to Ollama (async)...";
+    pendingResult = agent.askAsync(inputBuffer);
+    requestInFlight = true;
 }
 
 std::string ofApp::wrapText(const std::string& text, float maxWidth) const {

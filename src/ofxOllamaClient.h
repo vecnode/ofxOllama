@@ -1,5 +1,7 @@
 #pragma once
 
+#include <future>
+
 #include "ofMain.h"
 #include "ofxOllamaTypes.h"
 
@@ -14,6 +16,8 @@ public:
 
     Result generate(const std::string& prompt, const RequestOptions& options = RequestOptions()) const;
     Result chat(const std::vector<ChatMessage>& messages, const RequestOptions& options = RequestOptions()) const;
+    std::future<Result> generateAsync(std::string prompt, RequestOptions options = RequestOptions()) const;
+    std::future<Result> chatAsync(std::vector<ChatMessage> messages, RequestOptions options = RequestOptions()) const;
 
 private:
     Result postJson(const std::string& endpoint, const ofJson& body) const;

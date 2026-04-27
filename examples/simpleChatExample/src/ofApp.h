@@ -1,11 +1,14 @@
 #pragma once
 
+#include <future>
+
 #include "ofMain.h"
 #include "ofxOllama.h"
 
 class ofApp : public ofBaseApp {
 public:
     void setup() override;
+    void update() override;
     void draw() override;
     void keyPressed(int key) override;
 
@@ -19,4 +22,7 @@ private:
     std::string inputBuffer;
     std::string statusLine;
     std::string responseText;
+
+    bool requestInFlight = false;
+    std::future<ofxOllama::Result> pendingResult;
 };
