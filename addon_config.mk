@@ -1,9 +1,9 @@
 meta:
 ADDON_NAME = ofxOllama
-ADDON_DESCRIPTION = openFrameworks addon for interacting with local Ollama models
-ADDON_AUTHOR = ofxOllama contributors
+ADDON_DESCRIPTION = ofxOllama is an OpenFrameworks addon for Ollama 
+ADDON_AUTHOR = vecnode
 ADDON_TAGS = "ai" "ollama" "llm" "networking"
-ADDON_URL = https://github.com/your-org/ofxOllama
+ADDON_URL = https://github.com/vecnode/ofxOllama
 
 common:
 ADDON_INCLUDES = src
