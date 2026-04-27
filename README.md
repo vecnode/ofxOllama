@@ -3,16 +3,6 @@
 `ofxOllama` is an openFrameworks addon to interface with Ollama.
 
 
-## Features (Backbone)
-
-- HTTP client for Ollama REST endpoints with sync and async request APIs.
-- Support for:
-  - `/api/generate`
-  - `/api/chat`
-- Agent abstraction with conversation memory.
-- Example app that sends prompts asynchronously and keeps the UI responsive.
-
-
 ## Requirements
 
 1. openFrameworks installed.
@@ -33,3 +23,5 @@ if(result.success){
     ofLogError() << result.error;
 }
 ```
+
+![example_app](./docs/example1.png)
