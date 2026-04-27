@@ -44,17 +44,23 @@
 		{
 			"type": "shell",
 			"label": "Build RELEASE",
-			"command": "make -C examples/simpleChatExample -j -s 2>&1"
-			// "windows" : {
-			// 	"command" : "msbuild"
-			// }
+			"command": "make -C examples/simpleChatExample -j -s 2>&1",
+			"linux": {
+				"command": "make -C examples/simpleChatExample -j -s 2>&1"
+			},
+			"windows": {
+				"command": "make -C examples/simpleChatExample -j -s 2>&1"
+			}
 		},
 		{
 			"type": "shell",
 			"label": "Run RELEASE",
 			"command": "make -C examples/simpleChatExample RunRelease >&1",
+			"linux": {
+				"command": "make -C examples/simpleChatExample RunRelease >&1"
+			},
 			"windows" : {
-				"command" : "bin/*.exe"
+				"command" : "make -C examples/simpleChatExample RunRelease >&1"
 			}
 		},
 		{
@@ -69,24 +75,48 @@
 		{
 			"type": "shell",
 			"label": "Build DEBUG",
-			"command": "make -C examples/simpleChatExample Debug -j -s 2>&1 || exit 1"
+			"command": "make -C examples/simpleChatExample Debug -j -s 2>&1 || exit 1",
+			"linux": {
+				"command": "make -C examples/simpleChatExample Debug -j -s 2>&1 || exit 1"
+			},
+			"windows": {
+				"command": "make -C examples/simpleChatExample Debug -j -s 2>&1 || exit 1"
+			}
 		},
 
 		{
 			"type": "shell",
 			"label": "Clean DEBUG",
-			"command": "make -C examples/simpleChatExample CleanDebug"
+			"command": "make -C examples/simpleChatExample CleanDebug",
+			"linux": {
+				"command": "make -C examples/simpleChatExample CleanDebug"
+			},
+			"windows": {
+				"command": "make -C examples/simpleChatExample CleanDebug"
+			}
 		},
 
 		{
 			"type": "shell",
 			"label": "Clean RELEASE",
-			"command": "make -C examples/simpleChatExample CleanRelease"
+			"command": "make -C examples/simpleChatExample CleanRelease",
+			"linux": {
+				"command": "make -C examples/simpleChatExample CleanRelease"
+			},
+			"windows": {
+				"command": "make -C examples/simpleChatExample CleanRelease"
+			}
 		},
 		{
 			"type": "shell",
 			"label": "Clean ALL",
-			"command": "make -C examples/simpleChatExample clean"
+			"command": "make -C examples/simpleChatExample clean",
+			"linux": {
+				"command": "make -C examples/simpleChatExample clean"
+			},
+			"windows": {
+				"command": "make -C examples/simpleChatExample clean"
+			}
 		}
 	]
 }
