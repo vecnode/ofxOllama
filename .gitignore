@@ -1,0 +1,29 @@
+# Build artifacts
+bin/
+obj/
+examples/**/bin/
+examples/**/obj/
+
+# Compiled binaries and libraries
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+
+# Temporary and logs
+*.log
+*.tmp
+*.swp
+*~
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+
+# Keep VS Code tasks tracked, ignore other local-only editor files
+.vscode/*
+!.vscode/tasks.json
+
