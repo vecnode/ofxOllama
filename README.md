@@ -15,7 +15,7 @@
 ofxOllama::setModel("gemma3:4b");
 
 ofxOllama::Agent agent;
-agent.role("You are a professional assistant that answers the questions in 2 or 3 sentences.");
+agent.setRole("You are a professional assistant that answers the questions in 2 or 3 sentences.");
 
 auto result = agent.ask("Give me one creative coding idea.");
 

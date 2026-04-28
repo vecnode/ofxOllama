@@ -17,6 +17,7 @@ void Agent::setClient(std::shared_ptr<Client> newClient) {
 }
 
 void Agent::setModel(const std::string& model) {
+    ofxOllama::setModel(model);
     std::lock_guard<std::mutex> lock(mutex);
     requestOptions.model = model;
 }
@@ -26,7 +27,7 @@ void Agent::setSystemPrompt(const std::string& prompt) {
     requestOptions.systemPrompt = prompt;
 }
 
-void Agent::role(const std::string& prompt) {
+void Agent::setRole(const std::string& prompt) {
     setSystemPrompt(prompt);
 }
 

@@ -39,7 +39,7 @@ Total API entries documented below: 18.
 - `ofxOllama::Agent::setClient(std::shared_ptr<Client> client)` - Replaces the client used by the agent.
 - `ofxOllama::Agent::setModel(const std::string& model)` - Sets the model for agent requests.
 - `ofxOllama::Agent::setSystemPrompt(const std::string& prompt)` - Sets the system prompt prepended to chat context.
-- `ofxOllama::Agent::role(const std::string& prompt)` - Convenience alias for `setSystemPrompt`.
+- `ofxOllama::Agent::setRole(const std::string& prompt)` - Convenience alias for `setSystemPrompt`.
 - `ofxOllama::Agent::clearConversation()` - Clears the agent conversation memory.
 - `ofxOllama::Agent::getConversation() const` - Returns the current conversation history.
 - `ofxOllama::Agent::ask(const std::string& userText)` - Sends a blocking user turn and appends assistant response on success.

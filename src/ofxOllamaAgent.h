@@ -15,7 +15,7 @@ public:
     void setClient(std::shared_ptr<Client> client);
     void setModel(const std::string& model);
     void setSystemPrompt(const std::string& prompt);
-    void role(const std::string& prompt);
+    void setRole(const std::string& prompt);
 
     void clearConversation();
     const std::vector<ChatMessage>& getConversation() const;
