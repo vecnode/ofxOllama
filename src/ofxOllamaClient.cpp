@@ -1,9 +1,8 @@
 #include "ofxOllamaClient.h"
 
-#include <cstring>
-#include <cstdio>
+#include <curl/curl.h>
+
 #include <sstream>
-#include <cstdlib>
 
 namespace {
 std::string trimRightSlash(const std::string& input) {
@@ -42,41 +41,60 @@ std::string tokenFromChunk(const std::string& endpoint, const ofJson& chunk) {
     return "";
 }
 
-std::string shellQuote(const std::string& input) {
-    std::string quoted = "'";
-    for (const char c : input) {
-        if (c == '\'') {
-            quoted += "'\\''";
-        } else {
-            quoted += c;
-        }
-    }
-    quoted += "'";
-    return quoted;
-}
+struct StreamContext {
+    const std::string* endpoint = nullptr;
+    std::function<void(const std::string& token)>* onToken = nullptr;
+    ofxOllama::Result* result = nullptr;
+    std::string pending;
+};
 
-bool hasCurl() {
-    return std::system("command -v curl >/dev/null 2>&1") == 0;
-}
-
-void applyEndpointText(const std::string& endpoint, ofxOllama::Result& result) {
-    if (!result.success) {
+void consumeStreamLine(const std::string& rawLine, StreamContext& context) {
+    const std::string cleaned = trim(rawLine);
+    if (cleaned.empty()) {
         return;
     }
 
-    if (endpoint == "/api/generate") {
-        if (result.raw.contains("response") && result.raw["response"].is_string()) {
-            result.text = result.raw["response"].get<std::string>();
-        }
+    ofJson chunk;
+    try {
+        chunk = ofJson::parse(cleaned);
+    } catch (const std::exception& e) {
+        context.result->success = false;
+        context.result->error = "Failed to parse streaming JSON chunk: " + std::string(e.what());
         return;
     }
 
-    if (endpoint == "/api/chat") {
-        if (result.raw.contains("message") && result.raw["message"].is_object() &&
-            result.raw["message"].contains("content") && result.raw["message"]["content"].is_string()) {
-            result.text = result.raw["message"]["content"].get<std::string>();
+    context.result->raw = chunk;
+
+    const std::string token = tokenFromChunk(*context.endpoint, chunk);
+    if (!token.empty()) {
+        context.result->text += token;
+        if (*context.onToken) {
+            (*context.onToken)(token);
         }
     }
+
+    if (chunk.contains("error") && chunk["error"].is_string()) {
+        context.result->error = chunk["error"].get<std::string>();
+    }
+}
+
+size_t streamingWriteCallback(char* ptr, size_t size, size_t nmemb, void* userdata) {
+    if (userdata == nullptr || ptr == nullptr) {
+        return 0;
+    }
+
+    StreamContext* context = static_cast<StreamContext*>(userdata);
+    const size_t bytes = size * nmemb;
+    context->pending.append(ptr, bytes);
+
+    std::size_t newlinePos = std::string::npos;
+    while ((newlinePos = context->pending.find('\n')) != std::string::npos) {
+        const std::string line = context->pending.substr(0, newlinePos);
+        context->pending.erase(0, newlinePos + 1);
+        consumeStreamLine(line, *context);
+    }
+
+    return bytes;
 }
 }  // namespace
 
@@ -163,95 +181,54 @@ Result Client::streamJson(const std::string& endpoint,
                           std::function<void(const std::string& token)> onToken) const {
     Result result;
 
-    // Keep streaming optional at runtime: if curl is unavailable, preserve behavior using the regular path.
-    if (!hasCurl()) {
-        result = postJson(endpoint, body);
-        applyEndpointText(endpoint, result);
-        if (result.success && onToken && !result.text.empty()) {
-            onToken(result.text);
-        }
+    CURL* curl = curl_easy_init();
+    if (curl == nullptr) {
+        result.success = false;
+        result.statusCode = -1;
+        result.error = "Failed to initialize libcurl";
         return result;
     }
 
+    const std::string url = host + endpoint;
     const std::string payload = body.dump();
-    const std::string command =
-        "curl -sS -N -H 'Content-Type: application/json' -X POST " + shellQuote(host + endpoint) +
-        " --data-binary " + shellQuote(payload) +
-        " -w '\n__HTTP_STATUS__:%{http_code}\n' 2>/dev/null";
 
-    FILE* pipe = popen(command.c_str(), "r");
-    if (pipe == nullptr) {
-        result = postJson(endpoint, body);
-        applyEndpointText(endpoint, result);
-        if (result.success && onToken && !result.text.empty()) {
-            onToken(result.text);
-        }
-        return result;
+    struct curl_slist* headers = nullptr;
+    headers = curl_slist_append(headers, "Content-Type: application/json");
+
+    StreamContext context;
+    context.endpoint = &endpoint;
+    context.onToken = &onToken;
+    context.result = &result;
+
+    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+    curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+    curl_easy_setopt(curl, CURLOPT_POST, 1L);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, payload.c_str());
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDSIZE, static_cast<long>(payload.size()));
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, streamingWriteCallback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &context);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+
+    CURLcode code = curl_easy_perform(curl);
+    long httpCode = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+
+    if (!context.pending.empty()) {
+        consumeStreamLine(context.pending, context);
     }
 
-    char buffer[2048];
-    std::string pending;
-
-    auto consumeLine = [&](const std::string& rawLine) {
-        const std::string cleaned = trim(rawLine);
-        if (cleaned.empty()) {
-            return;
-        }
-
-        constexpr const char* statusPrefix = "__HTTP_STATUS__:";
-        if (cleaned.rfind(statusPrefix, 0) == 0) {
-            result.statusCode = ofToInt(cleaned.substr(std::strlen(statusPrefix)));
-            return;
-        }
-
-        ofJson chunk;
-        try {
-            chunk = ofJson::parse(cleaned);
-        } catch (const std::exception& e) {
-            result.success = false;
-            result.error = "Failed to parse streaming JSON chunk: " + std::string(e.what());
-            return;
-        }
-
-        result.raw = chunk;
-
-        const std::string token = tokenFromChunk(endpoint, chunk);
-        if (!token.empty()) {
-            result.text += token;
-            if (onToken) {
-                onToken(token);
-            }
-        }
-
-        if (chunk.contains("error") && chunk["error"].is_string()) {
-            result.error = chunk["error"].get<std::string>();
-        }
-    };
-
-    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
-        pending += buffer;
-
-        std::size_t newlinePos = std::string::npos;
-        while ((newlinePos = pending.find('\n')) != std::string::npos) {
-            const std::string line = pending.substr(0, newlinePos);
-            pending.erase(0, newlinePos + 1);
-            consumeLine(line);
-        }
-    }
-
-    if (!pending.empty()) {
-        consumeLine(pending);
-    }
-
-    const int closeStatus = pclose(pipe);
-    if (result.statusCode < 0) {
-        result.statusCode = (closeStatus == 0) ? 200 : -1;
-    }
-
-    result.success = (result.statusCode >= 200 && result.statusCode < 300 && result.error.empty());
+    result.statusCode = static_cast<int>(httpCode);
+    result.success = (code == CURLE_OK && result.statusCode >= 200 && result.statusCode < 300 && result.error.empty());
     if (!result.success && result.error.empty()) {
-        result.error = "HTTP request failed with status " + ofToString(result.statusCode);
+        if (code != CURLE_OK) {
+            result.error = "Streaming request failed: " + std::string(curl_easy_strerror(code));
+        } else {
+            result.error = "HTTP request failed with status " + ofToString(result.statusCode);
+        }
     }
+
+    curl_slist_free_all(headers);
+    curl_easy_cleanup(curl);
 
     return result;
 }

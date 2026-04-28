@@ -7,3 +7,4 @@ ADDON_URL = https://github.com/vecnode/ofxOllama
 
 common:
 ADDON_INCLUDES = src
+ADDON_LDFLAGS = -lcurl

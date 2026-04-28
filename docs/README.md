@@ -54,4 +54,3 @@ Total API entries documented below: 21.
 - Async APIs are available via `Client::generateAsync`, `Client::chatAsync`, and `Agent::askAsync`.
 - Streaming is opt-in using `RequestOptions::stream` (or `Agent::setStream(true)`).
 - `simpleChatExample` demonstrates live streamed text rendering using `Agent::onToken`.
-- If `curl` is not available at runtime, streaming requests gracefully fall back to the regular non-streaming request path.
