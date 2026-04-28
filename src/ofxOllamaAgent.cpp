@@ -26,6 +26,10 @@ void Agent::setSystemPrompt(const std::string& prompt) {
     requestOptions.systemPrompt = prompt;
 }
 
+void Agent::role(const std::string& prompt) {
+    setSystemPrompt(prompt);
+}
+
 void Agent::clearConversation() {
     std::lock_guard<std::mutex> lock(mutex);
     conversation.clear();

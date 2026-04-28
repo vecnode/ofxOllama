@@ -7,8 +7,8 @@ void ofApp::setup() {
     ofSetFrameRate(60);
     ofBackground(20, 24, 32);
 
-    ofxOllama::setDefaultModel("gemma3:4b");
-    agent.setModel(ofxOllama::getDefaultModel());
+    ofxOllama::setModel("gemma3:4b");
+    agent.setModel(ofxOllama::getModel());
 
     pending = agent.askAsync(prompt);
     waiting = true;
@@ -39,7 +39,7 @@ void ofApp::draw() {
     ofDrawBitmapStringHighlight("oneLineAskExample", 24, 34);
 
     ofSetColor(200);
-    ofDrawBitmapString("Model: " + ofxOllama::getDefaultModel(), 24, 60);
+    ofDrawBitmapString("Model: " + ofxOllama::getModel(), 24, 60);
 
     ofSetColor(255);
     ofDrawBitmapStringHighlight("Prompt", 24, 100);

@@ -4,8 +4,8 @@
 
 namespace ofxOllama {
 
-const std::string& getDefaultModel();
-void setDefaultModel(const std::string& model);
+const std::string& getModel();
+void setModel(const std::string& model);
 
 struct ChatMessage {
     std::string role;

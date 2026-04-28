@@ -5,8 +5,9 @@ void ofApp::setup() {
     ofSetFrameRate(60);
     ofBackground(16, 20, 28);
 
-    ofxOllama::setDefaultModel("gemma3:4b");
-    model = ofxOllama::getDefaultModel();
+    ofxOllama::setModel("gemma3:4b");
+    model = ofxOllama::getModel();
+
     agent.setModel(model);
     agent.setSystemPrompt("You are a concise assistant for creative coding and openFrameworks.");
 

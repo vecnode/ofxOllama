@@ -9,14 +9,18 @@ Practical API reference for using ofxOllama from openFrameworks apps.
 - A higher-level `Agent` with conversation memory.
 - Sync and async request methods.
 
+## Summary
+
+By default, `ofxOllama` checks installed models via `ollama list` on first use and selects the first available model, or `"none"` when no models are installed.
+
 ## API
 
 Total API entries documented below: 18.
 
 ### Globals
 
-- `ofxOllama::getDefaultModel()` - Returns the current library-wide default model.
-- `ofxOllama::setDefaultModel(const std::string& model)` - Sets the library-wide default model used by new request options.
+- `ofxOllama::getModel()` - Returns the current library-wide model. On first use, it auto-selects the first model reported by `ollama list`, or `"none"` if no installed model is found.
+- `ofxOllama::setModel(const std::string& model)` - Sets the library-wide model used by new request options.
 - `ofxOllama::toJson(const ChatMessage& message)` - Converts a chat message into Ollama-compatible JSON.
 
 ### Client
@@ -35,6 +39,7 @@ Total API entries documented below: 18.
 - `ofxOllama::Agent::setClient(std::shared_ptr<Client> client)` - Replaces the client used by the agent.
 - `ofxOllama::Agent::setModel(const std::string& model)` - Sets the model for agent requests.
 - `ofxOllama::Agent::setSystemPrompt(const std::string& prompt)` - Sets the system prompt prepended to chat context.
+- `ofxOllama::Agent::role(const std::string& prompt)` - Convenience alias for `setSystemPrompt`.
 - `ofxOllama::Agent::clearConversation()` - Clears the agent conversation memory.
 - `ofxOllama::Agent::getConversation() const` - Returns the current conversation history.
 - `ofxOllama::Agent::ask(const std::string& userText)` - Sends a blocking user turn and appends assistant response on success.
