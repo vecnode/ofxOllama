@@ -206,6 +206,10 @@ Result Client::generate(const std::string& prompt,
         {"stream", options.stream}
     };
 
+    if (!options.images.empty()) {
+        body["images"] = options.images;
+    }
+
     if (!options.systemPrompt.empty()) {
         body["system"] = options.systemPrompt;
     }

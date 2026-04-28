@@ -3,7 +3,7 @@
 #include "ofApp.h"
 
 void ofApp::setup() {
-    ofSetWindowTitle("ofxOllama | oneLineAskExample");
+    ofSetWindowTitle("ofxOllama | textExample");
     ofSetFrameRate(60);
     ofBackground(20, 24, 32);
 
@@ -36,7 +36,7 @@ void ofApp::update() {
 
 void ofApp::draw() {
     ofSetColor(235);
-    ofDrawBitmapStringHighlight("oneLineAskExample", 24, 34);
+    ofDrawBitmapStringHighlight("textExample", 24, 34);
 
     ofSetColor(200);
     ofDrawBitmapString("Model: " + ofxOllama::getModel(), 24, 60);

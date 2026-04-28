@@ -28,21 +28,25 @@ auto result = agent.ask("Give me one creative coding idea.");
 if(result.success){
     ofLogNotice() << result.text;
 }else{
-    switch (result.errorCode) {
-        case ofxOllama::ErrorCode::NotConnected:
-            ofLogError() << "Connection failed: " << result.error;
-            break;
-        case ofxOllama::ErrorCode::Timeout:
-            ofLogError() << "Request timed out: " << result.error;
-            break;
-        case ofxOllama::ErrorCode::ModelNotFound:
-            ofLogError() << "Model not found: " << result.error;
-            break;
-        default:
-            ofLogError() << "Request failed: " << result.error;
-            break;
-    }
+    ofLogError() << "Request failed [code=" << static_cast<int>(result.errorCode)
+                 << "]: " << result.error;
 }
+```
+
+Run the examples:
+
+```sh
+make -C examples/textExample -j -s
+make -C examples/textExample RunRelease
+
+make -C examples/imageExample -j -s
+make -C examples/imageExample RunRelease
+
+make -C examples/simpleChatExample -j -s
+make -C examples/simpleChatExample RunRelease
+
+# build and run all examples (sequential)
+set -e && make -C examples/textExample -j -s && make -C examples/textExample RunRelease && make -C examples/imageExample -j -s && make -C examples/imageExample RunRelease && make -C examples/simpleChatExample -j -s && make -C examples/simpleChatExample RunRelease
 ```
 
 ![example_app](./docs/example1.png)

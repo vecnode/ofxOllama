@@ -16,7 +16,7 @@ By default, `ofxOllama` checks installed models via `ollama list` on first use a
 
 ## API
 
-Total API entries documented below: 25.
+Total API entries documented below: 27.
 
 ### Globals
 
@@ -26,8 +26,9 @@ Total API entries documented below: 25.
 
 ### Types
 
-- `ofxOllama::ErrorCode` - Typed request failures: `None`, `NotConnected`, `Timeout`, `ModelNotFound`, `ServerError`, `InvalidResponse`, `EmptyInput`, `Unknown`.
+- `ofxOllama::ErrorCode` - Typed request failures: `None`, `Busy`, `NotConnected`, `Timeout`, `ModelNotFound`, `ServerError`, `InvalidResponse`, `EmptyInput`, `Unknown`.
 - `ofxOllama::Result::errorCode` - Machine-readable failure category for branch-safe handling.
+- `ofxOllama::RequestOptions::images` - Optional base64-encoded images for multimodal `/api/generate` requests.
 - `ofxOllama::RequestOptions::maxRetries` - Retry count for transient failures (`NotConnected` / `ServerError`).
 - `ofxOllama::RequestOptions::timeoutMs` - Per-request timeout in milliseconds.
 
@@ -51,7 +52,7 @@ Total API entries documented below: 25.
 - `ofxOllama::Agent::setSystemPrompt(const std::string& prompt)` - Sets the system prompt prepended to chat context.
 - `ofxOllama::Agent::setRole(const std::string& prompt)` - Convenience alias for `setSystemPrompt`.
 - `ofxOllama::Agent::clearConversation()` - Clears the agent conversation memory.
-- `ofxOllama::Agent::getConversation() const` - Returns the current conversation history.
+- `ofxOllama::Agent::getConversation() const` - Returns a thread-safe copy of the current conversation history.
 - `ofxOllama::Agent::ask(const std::string& userText)` - Sends a blocking user turn and appends assistant response on success.
 - `ofxOllama::Agent::askAsync(std::string userText)` - Sends a non-blocking user turn and returns a future result.
 - `ofxOllama::Agent::onToken` - `ofEvent<std::string>` fired on each streamed token.
@@ -62,4 +63,13 @@ Total API entries documented below: 25.
 - Async APIs are available via `Client::generateAsync`, `Client::chatAsync`, and `Agent::askAsync`.
 - Streaming is opt-in using `RequestOptions::stream` (or `Agent::setStream(true)`).
 - `simpleChatExample` demonstrates live streamed text rendering using `Agent::onToken`.
+- `textExample` demonstrates a single prompt-response flow.
+- `imageExample` demonstrates sending `examples/imageExample/img1.jpg` as a base64 image payload using `RequestOptions::images`.
 - `Result::errorCode` is set on all failure paths to allow robust error handling without string parsing.
+- Concurrent `ask`/`askAsync` calls on the same agent are rejected with `ErrorCode::Busy` to prevent turn interleaving.
+
+## Manual Test: Concurrent askAsync Safety
+
+1. Create one `ofxOllama::Agent` instance and trigger two `askAsync` calls back-to-back without awaiting the first.
+2. Verify one request succeeds (or fails for normal network/model reasons) and the other returns `success == false` with `errorCode == ofxOllama::ErrorCode::Busy`.
+3. Verify `agent.getConversation()` remains coherent (no duplicated/garbled interleaved turns).

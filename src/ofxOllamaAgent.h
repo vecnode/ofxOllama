@@ -1,5 +1,6 @@
 #pragma once
 
+#include <atomic>
 #include <deque>
 #include <future>
 #include <mutex>
@@ -21,7 +22,7 @@ public:
     void setRole(const std::string& prompt);
 
     void clearConversation();
-    const std::vector<ChatMessage>& getConversation() const;
+    std::vector<ChatMessage> getConversation() const;
 
     Result ask(const std::string& userText);
     std::future<Result> askAsync(std::string userText);
@@ -36,6 +37,7 @@ private:
     mutable std::mutex mutex;
     std::vector<ChatMessage> conversation;
     RequestOptions requestOptions;
+    std::atomic<bool> requesting{false};
 
     std::mutex eventMutex;
     std::deque<std::string> queuedTokens;

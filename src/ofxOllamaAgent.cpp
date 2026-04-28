@@ -55,11 +55,27 @@ void Agent::clearConversation() {
     conversation.clear();
 }
 
-const std::vector<ChatMessage>& Agent::getConversation() const {
+std::vector<ChatMessage> Agent::getConversation() const {
+    std::lock_guard<std::mutex> lock(mutex);
     return conversation;
 }
 
 Result Agent::ask(const std::string& userText) {
+    bool expected = false;
+    if (!requesting.compare_exchange_strong(expected, true)) {
+        Result result;
+        result.success = false;
+        result.statusCode = -1;
+        result.errorCode = ErrorCode::Busy;
+        result.error = "Agent is already processing a request";
+        return result;
+    }
+
+    struct RequestingReset {
+        std::atomic<bool>& flag;
+        ~RequestingReset() { flag.store(false); }
+    } reset{requesting};
+
     if (userText.empty()) {
         Result result;
         result.success = false;

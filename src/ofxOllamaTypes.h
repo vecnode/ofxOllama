@@ -9,6 +9,7 @@ void setModel(const std::string& model);
 
 enum class ErrorCode {
     None = 0,
+    Busy,
     NotConnected,
     Timeout,
     ModelNotFound,
@@ -27,6 +28,7 @@ struct RequestOptions {
     RequestOptions();
 
     std::string model;
+    std::vector<std::string> images;
     bool stream = false;
     ofJson options = ofJson::object();
     std::string systemPrompt;
