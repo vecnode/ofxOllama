@@ -16,7 +16,7 @@ By default, `ofxOllama` checks installed models via `ollama list` on first use a
 
 ## API
 
-Total API entries documented below: 21.
+Total API entries documented below: 25.
 
 ### Globals
 
@@ -24,11 +24,19 @@ Total API entries documented below: 21.
 - `ofxOllama::setModel(const std::string& model)` - Sets the library-wide model used by new request options.
 - `ofxOllama::toJson(const ChatMessage& message)` - Converts a chat message into Ollama-compatible JSON.
 
+### Types
+
+- `ofxOllama::ErrorCode` - Typed request failures: `None`, `NotConnected`, `Timeout`, `ModelNotFound`, `ServerError`, `InvalidResponse`, `EmptyInput`, `Unknown`.
+- `ofxOllama::Result::errorCode` - Machine-readable failure category for branch-safe handling.
+- `ofxOllama::RequestOptions::maxRetries` - Retry count for transient failures (`NotConnected` / `ServerError`).
+- `ofxOllama::RequestOptions::timeoutMs` - Per-request timeout in milliseconds.
+
 ### Client
 
 - `ofxOllama::Client::Client(std::string host = "http://127.0.0.1:11434")` - Creates a client bound to an Ollama host URL.
 - `ofxOllama::Client::setHost(const std::string& host)` - Updates the Ollama host URL for requests.
 - `ofxOllama::Client::getHost() const` - Returns the current Ollama host URL.
+- `ofxOllama::Client::isAvailable() const` - Returns `true` when Ollama host responds successfully to a health check request.
 - `ofxOllama::Client::generate(const std::string& prompt, const RequestOptions& options = RequestOptions(), std::function<void(const std::string& token)> onToken = nullptr) const` - Sends a blocking `/api/generate` request. When `options.stream` is `true`, invokes `onToken` for each streamed chunk.
 - `ofxOllama::Client::chat(const std::vector<ChatMessage>& messages, const RequestOptions& options = RequestOptions(), std::function<void(const std::string& token)> onToken = nullptr) const` - Sends a blocking `/api/chat` request. When `options.stream` is `true`, invokes `onToken` for each streamed chunk.
 - `ofxOllama::Client::generateAsync(std::string prompt, RequestOptions options = RequestOptions()) const` - Sends a non-blocking `/api/generate` request.
@@ -54,3 +62,4 @@ Total API entries documented below: 21.
 - Async APIs are available via `Client::generateAsync`, `Client::chatAsync`, and `Agent::askAsync`.
 - Streaming is opt-in using `RequestOptions::stream` (or `Agent::setStream(true)`).
 - `simpleChatExample` demonstrates live streamed text rendering using `Agent::onToken`.
+- `Result::errorCode` is set on all failure paths to allow robust error handling without string parsing.

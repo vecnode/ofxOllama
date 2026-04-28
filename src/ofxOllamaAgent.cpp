@@ -61,7 +61,12 @@ const std::vector<ChatMessage>& Agent::getConversation() const {
 
 Result Agent::ask(const std::string& userText) {
     if (userText.empty()) {
-        return Result{false, -1, "", "User text is empty", ofJson::object()};
+        Result result;
+        result.success = false;
+        result.statusCode = -1;
+        result.errorCode = ErrorCode::EmptyInput;
+        result.error = "User text is empty";
+        return result;
     }
 
     std::vector<ChatMessage> messagesForRequest;

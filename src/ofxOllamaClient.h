@@ -14,6 +14,7 @@ public:
 
     void setHost(const std::string& host);
     const std::string& getHost() const;
+    bool isAvailable() const;
 
     Result generate(const std::string& prompt,
                     const RequestOptions& options = RequestOptions(),
@@ -27,8 +28,9 @@ public:
 private:
     Result streamJson(const std::string& endpoint,
                       const ofJson& body,
+                      const RequestOptions& options,
                       std::function<void(const std::string& token)> onToken) const;
-    Result postJson(const std::string& endpoint, const ofJson& body) const;
+    Result postJson(const std::string& endpoint, const ofJson& body, const RequestOptions& options) const;
 
     std::string host;
 };
