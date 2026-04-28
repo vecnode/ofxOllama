@@ -1,5 +1,13 @@
 #include "ofxOllamaAgent.h"
 
+#include <thread>
+
+namespace {
+bool isMainThread() {
+    return std::this_thread::get_id() == ofGetMainThreadId();
+}
+}
+
 namespace ofxOllama {
 
 Agent::Agent(std::shared_ptr<Client> client)
@@ -7,6 +15,12 @@ Agent::Agent(std::shared_ptr<Client> client)
     if (!this->client) {
         this->client = std::make_shared<Client>();
     }
+
+    ofAddListener(ofEvents().update, this, &Agent::dispatchQueuedEvents);
+}
+
+Agent::~Agent() {
+    ofRemoveListener(ofEvents().update, this, &Agent::dispatchQueuedEvents);
 }
 
 void Agent::setClient(std::shared_ptr<Client> newClient) {
@@ -20,6 +34,11 @@ void Agent::setModel(const std::string& model) {
     ofxOllama::setModel(model);
     std::lock_guard<std::mutex> lock(mutex);
     requestOptions.model = model;
+}
+
+void Agent::setStream(bool enabled) {
+    std::lock_guard<std::mutex> lock(mutex);
+    requestOptions.stream = enabled;
 }
 
 void Agent::setSystemPrompt(const std::string& prompt) {
@@ -54,13 +73,52 @@ Result Agent::ask(const std::string& userText) {
         optionsForRequest = requestOptions;
     }
 
-    Result result = client->chat(messagesForRequest, optionsForRequest);
+    Result result = client->chat(messagesForRequest,
+                                 optionsForRequest,
+                                 [this](const std::string& token) {
+                                     if (isMainThread()) {
+                                         std::string tokenCopy = token;
+                                         ofNotifyEvent(onToken, tokenCopy, this);
+                                         return;
+                                     }
+
+                                     std::lock_guard<std::mutex> eventLock(eventMutex);
+                                     queuedTokens.push_back(token);
+                                 });
     if (result.success) {
         std::lock_guard<std::mutex> lock(mutex);
         conversation.push_back(ChatMessage{"assistant", result.text});
     }
 
+    if (isMainThread()) {
+        Result resultCopy = result;
+        ofNotifyEvent(onResult, resultCopy, this);
+    } else {
+        std::lock_guard<std::mutex> eventLock(eventMutex);
+        queuedResults.push_back(result);
+    }
+
     return result;
+}
+
+void Agent::dispatchQueuedEvents(ofEventArgs& args) {
+    (void)args;
+
+    std::deque<std::string> tokens;
+    std::deque<Result> results;
+    {
+        std::lock_guard<std::mutex> eventLock(eventMutex);
+        tokens.swap(queuedTokens);
+        results.swap(queuedResults);
+    }
+
+    for (auto& token : tokens) {
+        ofNotifyEvent(onToken, token, this);
+    }
+
+    for (auto& result : results) {
+        ofNotifyEvent(onResult, result, this);
+    }
 }
 
 std::future<Result> Agent::askAsync(std::string userText) {

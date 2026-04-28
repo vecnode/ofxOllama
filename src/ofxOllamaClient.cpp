@@ -1,11 +1,82 @@
 #include "ofxOllamaClient.h"
 
+#include <cstring>
+#include <cstdio>
+#include <sstream>
+#include <cstdlib>
+
 namespace {
 std::string trimRightSlash(const std::string& input) {
     if (!input.empty() && input.back() == '/') {
         return input.substr(0, input.size() - 1);
     }
     return input;
+}
+
+std::string trim(const std::string& value) {
+    const auto first = value.find_first_not_of(" \t\r\n");
+    if (first == std::string::npos) {
+        return "";
+    }
+
+    const auto last = value.find_last_not_of(" \t\r\n");
+    return value.substr(first, (last - first) + 1);
+}
+
+std::string tokenFromChunk(const std::string& endpoint, const ofJson& chunk) {
+    if (endpoint == "/api/generate") {
+        if (chunk.contains("response") && chunk["response"].is_string()) {
+            return chunk["response"].get<std::string>();
+        }
+        return "";
+    }
+
+    if (endpoint == "/api/chat") {
+        if (chunk.contains("message") && chunk["message"].is_object() &&
+            chunk["message"].contains("content") && chunk["message"]["content"].is_string()) {
+            return chunk["message"]["content"].get<std::string>();
+        }
+        return "";
+    }
+
+    return "";
+}
+
+std::string shellQuote(const std::string& input) {
+    std::string quoted = "'";
+    for (const char c : input) {
+        if (c == '\'') {
+            quoted += "'\\''";
+        } else {
+            quoted += c;
+        }
+    }
+    quoted += "'";
+    return quoted;
+}
+
+bool hasCurl() {
+    return std::system("command -v curl >/dev/null 2>&1") == 0;
+}
+
+void applyEndpointText(const std::string& endpoint, ofxOllama::Result& result) {
+    if (!result.success) {
+        return;
+    }
+
+    if (endpoint == "/api/generate") {
+        if (result.raw.contains("response") && result.raw["response"].is_string()) {
+            result.text = result.raw["response"].get<std::string>();
+        }
+        return;
+    }
+
+    if (endpoint == "/api/chat") {
+        if (result.raw.contains("message") && result.raw["message"].is_object() &&
+            result.raw["message"].contains("content") && result.raw["message"]["content"].is_string()) {
+            result.text = result.raw["message"]["content"].get<std::string>();
+        }
+    }
 }
 }  // namespace
 
@@ -23,7 +94,9 @@ const std::string& Client::getHost() const {
     return host;
 }
 
-Result Client::generate(const std::string& prompt, const RequestOptions& options) const {
+Result Client::generate(const std::string& prompt,
+                        const RequestOptions& options,
+                        std::function<void(const std::string& token)> onToken) const {
     ofJson body = {
         {"model", options.model},
         {"prompt", prompt},
@@ -37,6 +110,10 @@ Result Client::generate(const std::string& prompt, const RequestOptions& options
         body["options"] = options.options;
     }
 
+    if (options.stream) {
+        return streamJson("/api/generate", body, std::move(onToken));
+    }
+
     Result result = postJson("/api/generate", body);
     if (result.success && result.raw.contains("response") && result.raw["response"].is_string()) {
         result.text = result.raw["response"].get<std::string>();
@@ -44,7 +121,9 @@ Result Client::generate(const std::string& prompt, const RequestOptions& options
     return result;
 }
 
-Result Client::chat(const std::vector<ChatMessage>& messages, const RequestOptions& options) const {
+Result Client::chat(const std::vector<ChatMessage>& messages,
+                    const RequestOptions& options,
+                    std::function<void(const std::string& token)> onToken) const {
     ofJson jsonMessages = ofJson::array();
     for (const auto& message : messages) {
         jsonMessages.push_back(toJson(message));
@@ -64,6 +143,10 @@ Result Client::chat(const std::vector<ChatMessage>& messages, const RequestOptio
         body["options"] = options.options;
     }
 
+    if (options.stream) {
+        return streamJson("/api/chat", body, std::move(onToken));
+    }
+
     Result result = postJson("/api/chat", body);
     if (result.success &&
         result.raw.contains("message") &&
@@ -72,6 +155,104 @@ Result Client::chat(const std::vector<ChatMessage>& messages, const RequestOptio
         result.raw["message"]["content"].is_string()) {
         result.text = result.raw["message"]["content"].get<std::string>();
     }
+    return result;
+}
+
+Result Client::streamJson(const std::string& endpoint,
+                          const ofJson& body,
+                          std::function<void(const std::string& token)> onToken) const {
+    Result result;
+
+    // Keep streaming optional at runtime: if curl is unavailable, preserve behavior using the regular path.
+    if (!hasCurl()) {
+        result = postJson(endpoint, body);
+        applyEndpointText(endpoint, result);
+        if (result.success && onToken && !result.text.empty()) {
+            onToken(result.text);
+        }
+        return result;
+    }
+
+    const std::string payload = body.dump();
+    const std::string command =
+        "curl -sS -N -H 'Content-Type: application/json' -X POST " + shellQuote(host + endpoint) +
+        " --data-binary " + shellQuote(payload) +
+        " -w '\n__HTTP_STATUS__:%{http_code}\n' 2>/dev/null";
+
+    FILE* pipe = popen(command.c_str(), "r");
+    if (pipe == nullptr) {
+        result = postJson(endpoint, body);
+        applyEndpointText(endpoint, result);
+        if (result.success && onToken && !result.text.empty()) {
+            onToken(result.text);
+        }
+        return result;
+    }
+
+    char buffer[2048];
+    std::string pending;
+
+    auto consumeLine = [&](const std::string& rawLine) {
+        const std::string cleaned = trim(rawLine);
+        if (cleaned.empty()) {
+            return;
+        }
+
+        constexpr const char* statusPrefix = "__HTTP_STATUS__:";
+        if (cleaned.rfind(statusPrefix, 0) == 0) {
+            result.statusCode = ofToInt(cleaned.substr(std::strlen(statusPrefix)));
+            return;
+        }
+
+        ofJson chunk;
+        try {
+            chunk = ofJson::parse(cleaned);
+        } catch (const std::exception& e) {
+            result.success = false;
+            result.error = "Failed to parse streaming JSON chunk: " + std::string(e.what());
+            return;
+        }
+
+        result.raw = chunk;
+
+        const std::string token = tokenFromChunk(endpoint, chunk);
+        if (!token.empty()) {
+            result.text += token;
+            if (onToken) {
+                onToken(token);
+            }
+        }
+
+        if (chunk.contains("error") && chunk["error"].is_string()) {
+            result.error = chunk["error"].get<std::string>();
+        }
+    };
+
+    while (fgets(buffer, sizeof(buffer), pipe) != nullptr) {
+        pending += buffer;
+
+        std::size_t newlinePos = std::string::npos;
+        while ((newlinePos = pending.find('\n')) != std::string::npos) {
+            const std::string line = pending.substr(0, newlinePos);
+            pending.erase(0, newlinePos + 1);
+            consumeLine(line);
+        }
+    }
+
+    if (!pending.empty()) {
+        consumeLine(pending);
+    }
+
+    const int closeStatus = pclose(pipe);
+    if (result.statusCode < 0) {
+        result.statusCode = (closeStatus == 0) ? 200 : -1;
+    }
+
+    result.success = (result.statusCode >= 200 && result.statusCode < 300 && result.error.empty());
+    if (!result.success && result.error.empty()) {
+        result.error = "HTTP request failed with status " + ofToString(result.statusCode);
+    }
+
     return result;
 }
 
