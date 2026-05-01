@@ -49,4 +49,13 @@ make -C examples/simpleChatExample RunRelease
 set -e && make -C examples/textExample -j -s && make -C examples/textExample RunRelease && make -C examples/imageExample -j -s && make -C examples/imageExample RunRelease && make -C examples/simpleChatExample -j -s && make -C examples/simpleChatExample RunRelease
 ```
 
+VS Code workspace setup (Linux + Windows):
+
+```sh
+# Linux: 
+sudo apt update && sudo apt install -y build-essential pkg-config curl && code ofxOllama.code-workspace
+# Windows (MSYS2 MinGW64): 
+pacman -S --needed --noconfirm mingw-w64-x86_64-toolchain make pkgconf curl git
+```
+
 ![example_app](./docs/example1.png)

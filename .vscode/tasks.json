@@ -6,14 +6,11 @@
 	},
 	"windows" : {
 		"options": {
+			"cwd": "${workspaceFolder}",
 			"shell": {
-				"executable": "C:\\msys64\\msys2_shell.cmd",
+				"executable": "C:\\msys64\\usr\\bin\\bash.exe",
 				"args": [
-					"-defterm",
-					"-mingw64",
-					"-no-start",
-					"-here",
-					"-shell bash -c"
+					"-lc"
 				]
 			}
 		}
